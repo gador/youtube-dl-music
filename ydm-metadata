@@ -785,8 +785,7 @@ def word_tuple(string):
 
 
 def album_sort_key(release_group):
-    """Sorting algorithm for selecting the 'best' release group. This can be
-    passed to `sorted` with ``key=lambda_sort``."""
+    """Return sort key for ordering the 'best' release groups."""
     try:
         type_ = type_prefs.index(release_group.get('type', 'Unknown'))
     except ValueError:
@@ -797,9 +796,7 @@ def album_sort_key(release_group):
 
 
 def artwork_sort_key(release):
-    """Sorting algorithm for selecting the highest quality/most accurate
-    artwork in a release group. This can be passed to `sorted` with
-    ``key=lambda_sort``."""
+    """Return sort key for selecting highest quality and most accurate artwork."""
     # Retrieve the 'highest quality' format in the media list
     media = [
         medium.get('format', 'unknown').lower()
@@ -904,7 +901,7 @@ def album_musicbrainz(recordings):
             *{release.get('title', '') for release in group['releases']}
         ]
 
-    # 1) Get the recording year as simply the earliest date-release amongst
+    # 0. Get the recording year as simply the earliest date-release amongst
     # releases in the release group. Will get the title in the loop below, and
     # same for genres
     year = str(min(min(group['years'], default=9999) for group in groups))
@@ -915,7 +912,7 @@ def album_musicbrainz(recordings):
     metadata = {'year': year, 'image': None}
     title = image = None
     for group in sorted(groups, key=album_sort_key):
-        # 1) Get album title and record it from the *preferred* group for
+        # 1. Get album title and record it from the *preferred* group for
         # artwork, whether or not it actually has artwork
         # title = min((
         #     title for title in group.get('titles', []) if
@@ -925,7 +922,7 @@ def album_musicbrainz(recordings):
         if 'title' not in metadata:
             metadata['title'] = title
 
-        # 2) Get the genres, if haven't found them yet. Will prioritize
+        # 2. Get the genres, if haven't found them yet. Will prioritize
         # Discogs genres but use MusicBrainz as backup
         # * Discogs genres are from the Master release, not specific to song.
         # * MusicBrainz genres are not from Master release, but instead from
@@ -964,7 +961,7 @@ def album_musicbrainz(recordings):
         if args.confirm and not confirm_prompt():
             continue
 
-        # 3) The album artwork. Confirm if user wants it
+        # 3. The album artwork. Confirm if user wants it
         # and print some related information
         image = artwork_musicbrainz(group['releases'])
         if image is None:
@@ -1041,8 +1038,7 @@ def genres_discogs(rgid):
 
     page = BeautifulSoup(content, 'lxml').decode()  # converts to string
 
-    # Parse HTMl page to get the discogs id
-    # From:
+    # Parse HTMl page to get the discogs id. From:
     # https://stackoverflow.com/questions/15517483/how-to-extract-urls-from-an-html-page-in-python
     url = True
     urls = []
@@ -1337,13 +1333,13 @@ def recording_musicbrainz(artist, recording):  # artistnames, artistids):
                     'in your artist or title name. Tried to repair typo with '
                     'non-strict search, with no luck.'
                 )
-                return artist_orig, []
+                return
             print(
                 f'Search failed. Try again with artist {artist!r} and '
                 f'recording name {recording!r}?'
             )
             if not confirm_prompt():
-                return artist_orig, []
+                return
             else:
                 round2 = True
     # Lists
@@ -1352,7 +1348,7 @@ def recording_musicbrainz(artist, recording):  # artistnames, artistids):
             'No recordings found. '
             'You might have a typo in your title or artist name.'
         )
-        return artist_orig, []
+        return
     rec_artists = [
         irecording['artist-credit'][0]
         for irecording in recordings
@@ -1380,7 +1376,7 @@ def recording_musicbrainz(artist, recording):  # artistnames, artistids):
         print(
             'No recordings found. You might have a typo in your artist name.'
         )
-        return artist_orig, []
+        return
 
     if len(uq_artists) > 1:
         # There is more than one unique artist in the list; we must pick one
