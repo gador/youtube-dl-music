@@ -19,6 +19,7 @@ if __name__ != '__main__':
     raise RuntimeError('This file can only be invoked as a script.')
 
 # Parse command line args *first* so ydm-metadata --help is fast
+import csv
 import argparse
 parser = argparse.ArgumentParser(description=__doc__, add_help=False)
 parser.add_argument(
@@ -94,7 +95,6 @@ args = parser.parse_args()
 
 import re
 import os
-import pandas as pd
 import requests
 import discogs_client
 import musicbrainzngs as mb
@@ -121,12 +121,10 @@ from PIL import Image
 
 # Read config file
 sdir = os.path.dirname(os.path.realpath(__file__))
-file_config = f"{sdir}/.config"
-file_choices = f"{sdir}/.choices"
+file_config = f'{sdir}/.config'
+file_choices = f'{sdir}/.choices'
 if not os.path.exists(file_config):
-    raise IOError(
-        "Add fields to the file {file_config!r} to enable metadata tagging."
-    )
+    raise IOError('Add fields to the file {file_config!r} to enable metadata tagging.')
 with open(file_config, "r") as file:
     config = file.readlines()
 config = [
@@ -951,7 +949,7 @@ def album_musicbrainz(recordings):
         years = [-1] if len(years) == 0 else years
         if args.confirm or args.verbose:
             print(
-                f'Group candidate: name(s) '
+                'Group candidate: name(s) '
                 + ', '.join(map(repr, group['titles']))
                 + f', type {group.get("type", "NA")!r}'
                 + f', count {group["count"]}'
@@ -1263,7 +1261,7 @@ def genres_musicbrainz(recordings):
         ]
         if args.verbose:
             print(
-                f'MusicBrainz genres for writing: '
+                'MusicBrainz genres for writing: '
                 + ', '.join(map(repr, genres_announce)) + '.'
             )
         return [*genres]
@@ -1283,7 +1281,6 @@ def recording_musicbrainz(artist, recording):  # artistnames, artistids):
     """
     # Premature track and artist filtering, so the "strict search"
     # will give reasonable results.
-    artist_orig = artist
     artist = artist.split('ft.')[0]  # get first artist in name
     recording = recording.split('+')[0]  # get first song in combo
     recording = re.sub(r'\(.*\)', ' ', recording)  # remove parens
@@ -1379,41 +1376,41 @@ def recording_musicbrainz(artist, recording):  # artistnames, artistids):
         return
 
     if len(uq_artists) > 1:
-        # There is more than one unique artist in the list; we must pick one
-        # Load the config file, and see if a previous response is in there
+        # There is more than one unique artist in the list, we must pick one
         for i, uq_artist in enumerate(uq_artists):  # simple message
             print(
                 f"{i+1:d}: {uq_artist.get('name','')} "
                 f"({uq_artist.get('disambiguation','')})".split('()')[0]
             )
-        try:
-            df = pd.read_csv(file_choices, index_col=0, dtype=str)
-        except FileNotFoundError:
-            df = pd.DataFrame()
 
-        # Load old user response
-        if (
-            not args.forget and artist in df.index.values
-        ):
-            ids = df.loc[artist].values[0].split(',')  # list of ids user chose
-            response = [
-                c + 1
-                for c, uq_artist in enumerate(uq_artists)
-                if uq_artist.get('id', '') in ids
-            ]
-            print(
-                f'Loaded previous response: '
-                + ','.join(str(c) for c in response) + '.'
-            )
+        # Load the config file and see if a previous response is in there
+        response = None
+        if not args.forget and os.path.exists(file_choices):
+            with open(file_choices, 'r') as file:
+                reader = csv.reader(file, delimiter=',', quotechar='"')
+                for iartist, ids in reader:
+                    if iartist == artist:
+                        ids = ids.split(',')
+                        response = [
+                            c + 1 for c, uq_artist in enumerate(uq_artists)
+                            if uq_artist.get('id', '') in ids
+                        ]
+                        print(
+                            'Loaded previous response: '
+                            + ','.join(map(str, response)) + '.'
+                        )
+                        break
 
         # Get and save new user response
-        else:
+        if response is None:
+            # Query user until a valid input is given
             N = len(uq_artists)
             while True:
                 response = input(
                     'Which artist number(s) should we use (enter 0 for all)?'
                 )
-                if response in '0':  # includes empty string!
+                response = response.strip()
+                if response in '0':  # 0 *or* empty string, i.e. user pressed enter
                     response = [c + 1 for c in range(N)]
                     break
                 try:
@@ -1425,9 +1422,14 @@ def recording_musicbrainz(artist, recording):  # artistnames, artistids):
                         print('Integer(s) must satisfy 0 <= N <= {N}.')
                     else:
                         break
-            ids = ','.join(uq_artists[c - 1].get('id', '') for c in response)
-            df.loc[artist] = ids  # add ids to dataframe
-            df.to_csv(file_choices, header=False)
+            # Write file. See https://stackoverflow.com/a/17725590/4970632 for why
+            # lineterminator is necessary.
+            ids = [uq_artists[c - 1].get('id', '') for c in response]
+            with open(file_choices, 'a') as file:
+                writer = csv.writer(
+                    file, delimiter=',', quotechar='"', lineterminator='\n'
+                )
+                writer.writerow([artist, ','.join(ids)])
 
         # Filter to user selected choice
         recordings = [

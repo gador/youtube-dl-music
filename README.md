@@ -41,7 +41,6 @@ The remaining dependencies are python packages. The below packages are all insta
   * [ffmpeg-normalize](https://github.com/slhck/ffmpeg-normalize): Python package for normalizing volume, requires ffmpeg accessible from shell.
   * [musicbrainzngs](https://github.com/alastair/python-musicbrainzngs): For interacting with MusicBrainz database.
   * [mutagen](https://github.com/quodlibet/mutagen): For writing metadata.
-  * [pandas](https://github.com/pandas-dev/pandas): For saving tabulated user response data.
   * [unidecode](https://pypi.python.org/pypi/Unidecode): For translating accented characters to ASCII.
   * [youtube-dl](https://github.com/rg3/youtube-dl): Script for downloading youtube media.
 

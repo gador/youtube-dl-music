@@ -4,7 +4,6 @@ discogs_client
 ffmpeg-normalize
 musicbrainzngs
 mutagen
-pandas
 pillow
 unidecode
 youtube-dl
