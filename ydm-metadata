@@ -19,7 +19,6 @@ if __name__ != '__main__':
     raise RuntimeError('This file can only be invoked as a script.')
 
 # Parse command line args *first* so ydm-metadata --help is fast
-import csv
 import argparse
 parser = argparse.ArgumentParser(description=__doc__, add_help=False)
 parser.add_argument(
@@ -29,7 +28,7 @@ parser.add_argument(
     help=(
         "The file path(s). Each file should be formatted 'ARTIST - TITLE.ext'"
         "or 'ARTIST/TITLE.ext'. In the latter case, ARTIST is a subdirectory"
-        "dedicated for songs by that artist."
+        "containing songs by that artist."
     ),
 )
 parser.add_argument(
@@ -93,31 +92,22 @@ parser.add_argument(
 )
 args = parser.parse_args()
 
-import re
+# Remaining imports
+import csv
 import os
-import requests
+import re
+from io import BytesIO
 import discogs_client
 import musicbrainzngs as mb
-from mutagen.mp4 import MP4, MP4Cover, MP4StreamInfoError
-from mutagen.id3 import (
-    ID3,
-    ID3NoHeaderError,
-    TIT2,
-    TPE1,
-    TCON,
-    TALB,
-    TOAL,
-    TDRC,
-    TDOR,
-    TDRL,
-    APIC,
-    COMM,
-)
-from musicbrainzngs.musicbrainz import ResponseError
+import requests
 from bs4 import BeautifulSoup
-from io import BytesIO
+from musicbrainzngs.musicbrainz import ResponseError
+from mutagen.id3 import (
+    APIC, COMM, ID3, TALB, TCON, TDOR, TDRC, TDRL, TIT2,
+    TOAL, TPE1, ID3NoHeaderError
+)
+from mutagen.mp4 import MP4, MP4Cover, MP4StreamInfoError
 from PIL import Image
-
 
 # Read config file
 sdir = os.path.dirname(os.path.realpath(__file__))

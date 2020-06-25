@@ -59,12 +59,12 @@ This is the main script for downloading music. Usage is as follows:
 
 ```bash
 ydm [flags] URL ARTIST NAME - SONG TITLE  # inside the main directory
-ydm [flags] URL ARTIST NAME/SONG TITLE  # inside an artist subdirectory
+ydm [flags] URL ARTIST NAME / SONG TITLE  # inside an artist subdirectory
 ```
 
 Everything after 'URL' is interpreted as part of the destination location.
 The `ARTIST NAME - SONG TITLE` usage places the file loose inside your music folder.
-The `ARTIST NAME/SONG TITLE` usage places the file inside a *subdirectory* specific
+The `ARTIST NAME / SONG TITLE` usage places the file inside a *subdirectory* specific
 to the artist. This file naming convention is *necessary* for `ydm-metadata` to
 tag the file.
 

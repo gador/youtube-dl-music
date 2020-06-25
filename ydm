@@ -1,7 +1,7 @@
 #!/usr/bin/env bash
 # shellcheck disable=2001,2002,2018,2019
 usage1="ydm [OPTION...] URL ARTIST - TITLE"
-usage2="ydm [OPTION...] URL ARTIST/TITLE"
+usage2="ydm [OPTION...] URL ARTIST / TITLE"
 doc="
 Usage
 
@@ -16,8 +16,8 @@ Description
   * Downloads youtube audio from URL into the native format with the highest
     bitrate -- usually an OOG (webm) file.
   * Normalizes the audio volume and re-compresses into an AAC (m4a) file -- AAC
-    is used because it matches the compression of mp3 but with much improved
-    audio quality for marginal bitrates.
+    is used because it matches the compression of mp3 but with improved audio
+    quality for the marginal bitrates characteristic of youtube videos.
   * Tags the audio based on the ARTIST and TITLE. The tagging script does
     various fuzzy searching things to get the album title, album artwork,
     earliest release year, and album genre(s).
@@ -25,16 +25,19 @@ Description
 Required arguments
 
   URL     The youtube URL. Must begin with 'http'.
-  ARTIST  The artist name. For the tagging step to work, must be separated
-          from TITLE with a dash '-' surrounded by whitespace.
-  TITLE   The song name. The file will be saved as 'ARTIST - TITLE.m4a' or
-          'ARTIST - TITLE.mp3' depending on whether '-3' was passed.
+  ARTIST  The artist name. Should be separated from TITLE with a dash surrounded
+          by spaces or with a slash *optionally* surrounded by spaces. In the
+          former case, the file is saved loose in the music directory. In the
+          latter case, the file is saved in an ARTIST subdirectory. This naming
+          convention is required for the ydm-metadata algorithm to work.
+  TITLE   The song name. The file will be saved with m4a or mp3 format
+          depending on whether the '--mp3' flag was passed.
 
 Optional arguments
 
   -h|--help              Print this message.
-  -3|--mp3               Save as MP3 instead of M4A.
   -4|--m4a               Save as M4A. This is the default.
+  -3|--mp3               Save as MP3 instead of M4A.
   -q|--quick             Skip the tagging step.
   -Q|--very-quick        Skip the volume normalization and tagging steps.
   -cl|--classical        Set the sole genre tag to 'classical'.
