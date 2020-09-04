@@ -836,8 +836,9 @@ def add_metadata(
         if album['image']:
             tags['APIC'] = APIC(
                 data=album['image'],
+                desc='Cover',
                 mime='image/jpeg',
-                type=3, desc='Cover',
+                type=3,
             )
         elif 'APIC' in tags:
             del tags['APIC']
@@ -1240,9 +1241,7 @@ def genres_musicbrainz(recordings, verbose=False):
                 tags[tagd['name']] = int(tagd['count'])
             else:
                 tags[tagd['name']] += int(tagd['count'])
-    genres = sorted(
-        list(tags.items()), key=lambda x: x[1], reverse=True
-    )  # (genre,count) tuples
+    genres = sorted(list(tags.items()), key=lambda x: x[1], reverse=True)
     genres = [[*genre] for genre in genres]  # convert to lists
     if not genres:
         if verbose:
@@ -1261,26 +1260,25 @@ def genres_musicbrainz(recordings, verbose=False):
 
     # Split up strings suspected to contain multiple genres
     has_split, genres_split = [], []
-    for g, genre in enumerate(genres):
+    for i, genre in enumerate(genres):
         split = []
         if '/' in genre[0]:
             split = genre[0].split('/')
         elif ';' in genre[0]:
             split = genre[0].split(';')
         if split:
-            has_split.append(g)
+            has_split.append(i)
             for genre_new in split:
                 genres_split.append([genre_new, genre[1]])
     # Now ignore the genre-names with slashes in them, and re-combine
-    genres = [genre for g, genre in enumerate(genres) if g not in has_split]
+    genres = [genre for i, genre in enumerate(genres) if i not in has_split]
     genres = genres + genres_split
 
     # Run basic translations; maybe a tag is something we want, just under
     # slightly different name than Discogs conventions
     genres_new = []
-    for g, genre in enumerate(genres):
+    for name, count in genres:
         # First split up the string into "words"
-        name, count = genre
         name = name.lower()  # ensure lower-case
         name = name.replace(' and ', ' & ')  # discogs uses ampersand
         name = name.replace('&', ' & ')  # make sure separated by space
@@ -1327,34 +1325,25 @@ def genres_musicbrainz(recordings, verbose=False):
             genrecount[genre[0]] += genre[1]
         except KeyError:
             genrecount[genre[0]] = genre[1]
-    genres = [
-        [genre, count] for genre, count in genrecount.items()
-    ]  # back to list of lists
+    genres = [[genre, count] for genre, count in genrecount.items()]  # list of lists
     genres = sorted(genres, key=lambda x: x[1], reverse=True)
 
     # Filter the genre list by Discogs genres: compare where alphanumeric
     # characters match a Discogs style, then use the exact Discogs convention
     # for punctuation and capitalization
     def standardize(string):
-        return ' '.join(
-            re.sub(r'\W', ' ', string).split()
-        ).lower()  # non-alphenumeric char == \W
-
-    # standard names for comparison
+        return ' '.join(re.sub(r'\W', ' ', string).split()).lower()  # remove non-word
     discogs_std = [standardize(g) for g in DISCOGS_GENRES]
     genres = [
         (DISCOGS_GENRES[discogs_std.index(standardize(genre[0]))], genre[1])
-        for genre in genres
-        if standardize(genre[0]) in discogs_std and genre[1] > 0
-    ]  # make sure at least one "count" is present
+        for genre in genres if standardize(genre[0]) in discogs_std and genre[1] > 0
+    ]
 
     # If genre in added, 2nd statement is not called, but that's ok because
     # we don't need to re-add it to the set
     added = set()  # start an empty set
     genres = [
-        genre
-        for genre in genres
-        if not (genre[0] in added or added.add(genre[0]))
+        genre for genre in genres if not (genre[0] in added or added.add(genre[0]))
     ]
 
     # Now return, and echo message
