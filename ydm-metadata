@@ -1,12 +1,9 @@
 #!/usr/bin/env python3
 """
-This script adds metadata tags from the MusicBrainz and Discogs databases
-for audio files. If the file is AAC/MP4, the special MP4 metadata specification
-is used. Otherwise, e.g. for MP3 files, the ID3v2.4 header is used. There are
-several dependencies -- see
-https://github.com/lukelbd/youtube-dl-music for details.
+Add metadata tags to audio files by searching the MusicBrainz and Discogs databases.
+If the file is AAC/MP4, the MP4 metadata specification is used. Otherwise, e.g. for
+MP3 files, the ID3v2.4 header is used.
 """
-# Main imports
 # TODO: Pull cover art from Discogs master-release info if it is available;
 # Discogs could be generally more reliable there. Still use MusicBrainz for
 # searching because impossible to search for recording and artist at same time
@@ -748,6 +745,7 @@ def add_metadata(
     path,
     url=None, album=None, genres=None, year=None,
     confirm=False, forget=False, strict=False, verbose=False,
+    manual=False, override=False, override_artist=False, override_title=False,
 ):
     """
     Add metadata to the specified path.
@@ -756,9 +754,20 @@ def add_metadata(
     ----------
     url : str, optional
         The URL source for the file. If provided, this is saved as comment metadata.
+    manual : bool, optional
+        Do not search the database. Only add metadata based on manual input.
+    override : bool, optional
+        Encode the filename-indicated artist and title rather than the algorithm data.
+    override_artist, override_title : bool, optional
+        As with `override` but for just the artist and title.
     **kwargs
         Passed to `recording_musicbrainz` and `album_musicbrainz`.
     """
+    # Parse args
+    if genres:
+        genres = genres.split(',') if isinstance(genres, str) else genres
+        genres = [genre.strip() for genre in genres]
+
     # Get artist and title from file
     path = os.path.abspath(path)
     basename, _ = os.path.splitext(os.path.basename(path))
@@ -795,13 +804,22 @@ def add_metadata(
     # TODO: Use recording artist and title from *album*? Think these
     # must be identical.
     print(f'Retrieving metadata for {artist!r} - {title!r}.')
-    album = None
-    recordings = recording_musicbrainz(
-        artist, title, forget=forget, strict=strict, verbose=verbose,
-    )
+    recordings = []
+    album = album or {
+        'album': album or '',
+        'genres': genres or [],
+        'year': year or '',
+        'image': None
+    }
+    if not manual:
+        recordings = recording_musicbrainz(
+            artist, title, forget=forget, strict=strict, verbose=verbose,
+        )
     if recordings:
-        artist = recordings[0]['artist-credit'][0]['artist']['name']
-        title = recordings[0]['title']
+        if not (override or override_artist):
+            artist = recordings[0]['artist-credit'][0]['artist']['name']
+        if not (override or override_title):
+            title = recordings[0]['title']
         album = album_musicbrainz(
             recordings,
             album=album,
@@ -810,11 +828,10 @@ def add_metadata(
             confirm=confirm,
             verbose=verbose,
         )
-    album = album or {'album': '', 'year': '', 'genres': None, 'image': None}
-    genres = ', '.join(album['genres'] or [])
+    string = ', '.join(album['genres'] or [])
     print(
-        f'Album {album["title"]!r} ({album["year"]}'
-        f'{"; " * bool(genres)}{genres})'.split('()')[0].strip()
+        f"Album {album['album']!r} ({album['year']}"
+        f"{'; ' * bool(string)}{string})".split('()')[0].strip()
     )
 
     # Edit the ID3 header, if file has one
@@ -894,6 +911,11 @@ def album_musicbrainz(
         Dictionary containing the album metadata with the keys `album`, `image`,
         `genres`, and `year`.
     """
+    # Parse args
+    if genres:
+        genres = genres.split(',') if isinstance(genres, str) else list(genres)
+        genres = [genre.strip() for genre in genres]
+
     # Start with simple list of releases and recordings, as two separate groups
     # Note the recording list has repeated items to match placement of
     # corresponding releases
@@ -1000,8 +1022,7 @@ def album_musicbrainz(
         #   to number of discogs genres (which have standardized values).
         added = set()
         if genres:
-            igenres = genres.split(',') if isinstance(genres, str) else genres
-            igenres = [genre.strip() for genre in igenres]
+            igenres = genres.copy()
         else:
             dgenres = [
                 genre
@@ -1669,6 +1690,44 @@ if __name__ == '__main__':
         default=None,
         help='The release year. Use this to override the algorithm.',
     )
+    parser.add_argument(
+        '-m',
+        '--manual',
+        action='store_const',
+        const=True,
+        default=False,
+        help=(
+            'Whether to enable manual-mode. If passed we do not search the database '
+            'for artwork and only add metadata from the input flags.'
+        ),
+    )
+    parser.add_argument(
+        '-o',
+        '--override',
+        action='store_const',
+        const=True,
+        default=False,
+        help=(
+            'Whether to encode the filename-indicated artist and title rather than '
+            'the artist and title returned by the database search.'
+        ),
+    )
+    parser.add_argument(
+        '-oa',
+        '--override-artist',
+        action='store_const',
+        const=True,
+        default=False,
+        help='As with --override but for the artist only.'
+    )
+    parser.add_argument(
+        '-ot',
+        '--override-title',
+        action='store_const',
+        const=True,
+        default=False,
+        help='As with --override but for the title only.',
+    )
     args = parser.parse_args()
 
     # Loop through paths
@@ -1684,6 +1743,10 @@ if __name__ == '__main__':
                 forget=args.forget,
                 strict=args.strict,
                 verbose=args.verbose,
+                manual=args.manual,
+                override=args.override,
+                override_artist=args.override_artist,
+                override_title=args.override_title,
             )
         except FileNotFoundError:  # use warning instead of error
             print(f'Warning: Path {path!r} does not exist.')
