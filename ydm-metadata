@@ -805,7 +805,7 @@ def add_metadata(
     # must be identical.
     print(f'Retrieving metadata for {artist!r} - {title!r}.')
     recordings = []
-    album = album or {
+    data = {
         'album': album or '',
         'genres': genres or [],
         'year': year or '',
@@ -820,7 +820,7 @@ def add_metadata(
             artist = recordings[0]['artist-credit'][0]['artist']['name']
         if not (override or override_title):
             title = recordings[0]['title']
-        album = album_musicbrainz(
+        data = album_musicbrainz(
             recordings,
             album=album,
             genres=genres,
@@ -828,9 +828,9 @@ def add_metadata(
             confirm=confirm,
             verbose=verbose,
         )
-    string = ', '.join(album['genres'] or [])
+    string = ', '.join(data['genres'] or [])
     print(
-        f"Album {album['album']!r} ({album['year']}"
+        f"Album {data['album']!r} ({data['year']}"
         f"{'; ' * bool(string)}{string})".split('()')[0].strip()
     )
 
@@ -839,20 +839,20 @@ def add_metadata(
     if id3:
         tags['TPE1'] = TPE1(text=artist)
         tags['TIT2'] = TIT2(text=title)  # track name
-        tags['TDOR'] = TDOR(text=album['year'])  # original release time
-        tags['TDRC'] = TDRC(text=album['year'])  # recording time
-        tags['TDRL'] = TDRL(text=album['year'])  # release time
-        tags['TALB'] = TALB(text=album['album'])  # album
-        tags['TOAL'] = TOAL(text=album['album'])  # original album
+        tags['TDOR'] = TDOR(text=data['year'])  # original release time
+        tags['TDRC'] = TDRC(text=data['year'])  # recording time
+        tags['TDRL'] = TDRL(text=data['year'])  # release time
+        tags['TALB'] = TALB(text=data['album'])  # album
+        tags['TOAL'] = TOAL(text=data['album'])  # original album
         if url:
             tags['COMM'] = COMM(text=url, lang='eng', desc='URL')
-        if album['genres']:
-            tags['TCON'] = TCON(text=album['genres'][0], genres=album['genres'])
+        if data['genres']:
+            tags['TCON'] = TCON(text=data['genres'][0], genres=data['genres'])
         elif 'TCON' in tags:
             del tags['TCON']
-        if album['image']:
+        if data['image']:
             tags['APIC'] = APIC(
-                data=album['image'],
+                data=data['image'],
                 desc='Cover',
                 mime='image/jpeg',
                 type=3,
@@ -865,16 +865,16 @@ def add_metadata(
     else:
         tags['\xa9ART'] = [artist]
         tags['\xa9nam'] = [title]
-        tags['\xa9day'] = [album['year']]
-        tags['\xa9alb'] = [album['album']]
+        tags['\xa9day'] = [data['year']]
+        tags['\xa9alb'] = [data['album']]
         if url:
             tags['\xa9cmt'] = [url]
-        if album['genres']:
-            tags['\xa9gen'] = [*album['genres']]
+        if data['genres']:
+            tags['\xa9gen'] = [*data['genres']]
         elif '\xa9gen' in tags:
             del tags['\xa9gen']
-        if album['image']:
-            tags['covr'] = [MP4Cover(album['image'], imageformat=MP4Cover.FORMAT_JPEG)]
+        if data['image']:
+            tags['covr'] = [MP4Cover(data['image'], imageformat=MP4Cover.FORMAT_JPEG)]
         elif 'covr' in tags:
             del tags['covr']
         tags.save()
