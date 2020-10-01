@@ -684,7 +684,7 @@ def _artwork_sort_key(release):
     return medium, year, country
 
 
-def _confirm_prompt():
+def _user_confirm():
     """
     Confirm prompt.
 
@@ -703,6 +703,14 @@ def _confirm_prompt():
             return True  # continue?
         else:
             print('Invalid choice.')
+
+
+def _word_standardize(string):
+    """
+    Return string with non-word parts removed and all words in lowercase
+    separated by single space.
+    """
+    return ' '.join(re.sub(r'\W', ' ', string).split()).lower()
 
 
 def _word_tuple(string):
@@ -870,6 +878,9 @@ def add_metadata(
         if url:
             tags['\xa9cmt'] = [url]
         if data['genres']:
+            # NOTE: Multiple genres not supported by Apple Music. Could join list
+            # with commas, but then the drop-down list in 'Get Info' pane includes
+            # every combination of genres, which is really weird. Annoying.
             tags['\xa9gen'] = [*data['genres']]
         elif '\xa9gen' in tags:
             del tags['\xa9gen']
@@ -1001,10 +1012,13 @@ def album_musicbrainz(
     for group in sorted(groups, key=_album_sort_key):
         # 1. Get album title and record it from the *preferred* group for
         # artwork, whether or not it actually has artwork
-        # title = min((
-        #     title for title in group.get('titles', []) if
-        #     group.get('country','NA') in ANGLO_COUNTRIES
-        #     ), key=len, default='')
+        # title = min(
+        #     (
+        #         title for title in group.get('titles', []) if
+        #         group.get('country','NA') in ANGLO_COUNTRIES
+        #     ),
+        #     key=len, default='',
+        #     )
         ialbum = group['title']
         if album and _word_tuple(ialbum) != _word_tuple(album):
             if verbose:
@@ -1035,6 +1049,11 @@ def album_musicbrainz(
                 if genre not in added and not added.add(genre)
             ]
             igenres = dgenres + mgenres[: len(dgenres) or 3]
+            if verbose:
+                print(
+                    'Combined genres for writing: '
+                    + ', '.join(map(repr, igenres)) + '.'
+                )
         if 'genres' not in metadata:
             metadata['genres'] = igenres
 
@@ -1050,7 +1069,7 @@ def album_musicbrainz(
                 + f', earliest year {min(years)}'
                 + f', latest year {max(years)}.'
             )
-        if confirm and not _confirm_prompt():
+        if confirm and not _user_confirm():
             continue
 
         # 3. The album artwork. Confirm if user wants it and print some related info.
@@ -1101,7 +1120,7 @@ def artwork_musicbrainz(releases, confirm=False, verbose=False):
                 + f', country {country!r}'
                 + f', year {year}.'
             )
-        if confirm and not _confirm_prompt():
+        if confirm and not _user_confirm():
             continue
 
         # Pull artwork
@@ -1297,17 +1316,17 @@ def genres_musicbrainz(recordings, verbose=False):
 
     # Run basic translations; maybe a tag is something we want, just under
     # slightly different name than Discogs conventions
-    genres_new = []
-    for name, count in genres:
+    genres_clean = {}
+    for genre, count in genres:
         # First split up the string into "words"
-        name = name.lower()  # ensure lower-case
-        name = name.replace(' and ', ' & ')  # discogs uses ampersand
-        name = name.replace('&', ' & ')  # make sure separated by space
-        name = name.replace('-', ' ')
-        added, words = set(), name.split()  # split by spaces
+        genre = genre.lower()  # ensure lower-case
+        genre = genre.replace(' and ', ' & ')  # discogs uses ampersand
+        genre = genre.replace('&', ' & ')  # make sure separated by space
+        genre = genre.replace('-', ' ')
+        added, words = set(), genre.split()  # split by spaces
         words = [w for w in words if not (w in added or added.add(w))]
         if not words:
-            genres_new.append(['', 0])
+            genres_clean.append(['', 0])
             continue
 
         # Handle abbreviations and style variations
@@ -1335,29 +1354,20 @@ def genres_musicbrainz(recordings, verbose=False):
         # Word order, e.g. rock pop --> pop rock
         if words[0] == 'rock' and len(words) > 1 and words[1] != '&':
             words = reversed(words)
-        name = ' '.join(words)  # uniform spacing
-        genres_new.append([name, count])
-    genres = genres_new
-
-    # If genre-name is found twice, add their counts
-    genrecount = {}
-    for genre in genres:
-        try:
-            genrecount[genre[0]] += genre[1]
-        except KeyError:
-            genrecount[genre[0]] = genre[1]
-    genres = [[genre, count] for genre, count in genrecount.items()]  # list of lists
-    genres = sorted(genres, key=lambda x: x[1], reverse=True)
+        genre = ' '.join(words)  # uniform spacing
+        if genre not in genres_clean:
+            genres_clean[genre] = 0
+        genres_clean[genre] += count
 
     # Filter the genre list by Discogs genres: compare where alphanumeric
     # characters match a Discogs style, then use the exact Discogs convention
     # for punctuation and capitalization
-    def standardize(string):
-        return ' '.join(re.sub(r'\W', ' ', string).split()).lower()  # remove non-word
-    discogs_std = [standardize(g) for g in DISCOGS_GENRES]
+    genres_discogs = list(map(_word_standardize, DISCOGS_GENRES))
+    genres = sorted(genres_clean.items(), key=lambda x: x[1], reverse=True)
     genres = [
-        (DISCOGS_GENRES[discogs_std.index(standardize(genre[0]))], genre[1])
-        for genre in genres if standardize(genre[0]) in discogs_std and genre[1] > 0
+        (DISCOGS_GENRES[genres_discogs.index(_word_standardize(genre))], count)
+        for genre, count in genres
+        if _word_standardize(genre) in genres_discogs and count > 0
     ]
 
     # If genre in added, 2nd statement is not called, but that's ok because
@@ -1460,7 +1470,7 @@ def recording_musicbrainz(artist, recording, forget=False, strict=False, verbose
                 f'Search failed. Try again with artist {artist!r} and '
                 f'recording name {recording!r}?'
             )
-            if not _confirm_prompt():
+            if not _user_confirm():
                 return
             else:
                 round2 = True
