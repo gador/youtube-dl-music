@@ -128,8 +128,8 @@ directory="${directory%/}" # trim trailing slash if present
 
 # MP3 or M4A?
 if [ -z "$mp3" ]; then
-  mp3="$(cat "$config" | grep "mp3" | cut -s -d '=' -f 2 | tr A-Z a-z | xargs)"
-  [ -n "$mp3" ] || mp3=false
+  mp3=$(cat "$config" | grep "mp3" | cut -s -d '=' -f 2 | tr A-Z a-z | xargs)
+  [ -n "$mp3" ] || mp3="false"
   if ! [[ "$mp3" == "true" || "$mp3" == "false" ]]; then
     raise "Value 'mp3' in .config file must be either 'true' or 'false'."
   fi
