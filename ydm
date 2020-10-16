@@ -191,7 +191,7 @@ bitrate=$((bitrate*3/2))
 if ! $mp3; then
   echo "Normalizing volume and saving to m4a."
   ffmpeg-normalize "$path_dl" "$trimflag" "${normflags[@]}" \
-    -f -c:a libfdk_aac -b:a ${bitrate}k -o "$path_normalized" \
+    -f -c:a aac -b:a ${bitrate}k -o "$path_normalized" \
     || raise "Normalization failed."
 # Save to mp3
 else
