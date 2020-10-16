@@ -7,3 +7,4 @@ mutagen
 pillow
 unidecode
 youtube-dl
+lxml
